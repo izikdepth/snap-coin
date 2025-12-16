@@ -62,12 +62,13 @@ pub fn auto_peer(node: Arc<RwLock<Node>>) -> JoinHandle<()> {
             from_peer += 1;
 
             if let Some(fetch_peer) = fetch_peer {
+                let fetch_peer_addr = fetch_peer.read().await.address;
                 let response =
                     Peer::request(fetch_peer.clone(), Message::new(Command::GetPeers)).await;
                 let Ok(response) = response else {
                     Node::log(format!(
                         "Could not request peers from {}",
-                        fetch_peer.read().await.address,
+                        fetch_peer_addr
                     ));
                     continue;
                 };
@@ -115,7 +116,7 @@ pub fn auto_peer(node: Arc<RwLock<Node>>) -> JoinHandle<()> {
                                         tokio::task::yield_now().await;
                                         node_clone.write().await.peers.push(peer);
                                     });
-                                    Node::log(format!("Connected to new peer {}", addr));
+                                    Node::log(format!("Connected to new peer {}, referral from {}", addr, fetch_peer_addr));
                                 }
                             });
 
