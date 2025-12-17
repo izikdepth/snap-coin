@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
 use tokio::{sync::RwLock, time::sleep};
 
@@ -8,26 +8,36 @@ use crate::{
 };
 
 pub struct MemPool {
-    /// Hash map of time of expiry and transaction
-    pending: Arc<RwLock<HashMap<u64, Vec<Transaction>>>>,
+    /// BTreeMap of expiry timestamp -> transactions
+    pending: Arc<RwLock<BTreeMap<u64, Vec<Transaction>>>>,
 }
 
 impl MemPool {
     pub fn new() -> Self {
         MemPool {
-            pending: Arc::new(RwLock::new(HashMap::new())),
+            pending: Arc::new(RwLock::new(BTreeMap::new())),
         }
     }
 
-    pub fn start_expiry_watchdog(&mut self) {
+    /// Starts a background task that removes expired transactions
+    pub fn start_expiry_watchdog(&self) {
         let pending = self.pending.clone();
         tokio::spawn(async move {
             loop {
-                sleep(Duration::from_secs_f64(0.5)).await;
-                pending
-                    .write()
-                    .await
-                    .remove(&(chrono::Utc::now().timestamp() as u64));
+                sleep(Duration::from_millis(500)).await;
+                let now = chrono::Utc::now().timestamp() as u64;
+
+                let mut write_guard = pending.write().await;
+
+                // Remove all expired transactions efficiently
+                let expired_keys: Vec<u64> = write_guard
+                    .range(..=now)
+                    .map(|(&k, _)| k)
+                    .collect();
+
+                for key in expired_keys {
+                    write_guard.remove(&key);
+                }
             }
         });
     }
@@ -38,24 +48,17 @@ impl MemPool {
             .read()
             .await
             .values()
-            .flat_map(|v| v.iter().map(|tx| tx.clone()))
+            .flat_map(|v| v.iter().cloned())
             .collect()
     }
 
     /// Add a transaction to the mempool
     /// WARNING: Make sure this transaction is valid before
-    pub async fn add_transaction(&mut self, transaction: Transaction) {
+    pub async fn add_transaction(&self, transaction: Transaction) {
         let expiry = chrono::Utc::now().timestamp() as u64 + EXPIRATION_TIME;
-        if self.pending.read().await.contains_key(&expiry) {
-            self.pending
-                .write()
-                .await
-                .get_mut(&expiry)
-                .unwrap()
-                .push(transaction);
-        } else {
-            self.pending.write().await.insert(expiry, vec![transaction]);
-        }
+
+        let mut write_guard = self.pending.write().await;
+        write_guard.entry(expiry).or_default().push(transaction);
     }
 
     /// Returns true if a transaction is valid (check for double spending)
@@ -73,6 +76,7 @@ impl MemPool {
         true
     }
 
+    /// Remove transactions that have been spent
     pub async fn spend_transactions(&self, transactions: Vec<TransactionId>) {
         let mut pending = self.pending.write().await;
 
@@ -86,7 +90,7 @@ impl MemPool {
             });
         }
 
-        // Optional: clean up empty expiry buckets
+        // Clean up empty expiry buckets
         pending.retain(|_, txs| !txs.is_empty());
     }
 }

@@ -132,6 +132,7 @@ impl Node {
 
         let node = node.clone();
         auto_peer(node.clone());
+        node.read().await.mempool.start_expiry_watchdog();
 
         Ok(server_handle)
     }

@@ -157,7 +157,7 @@ async fn test_mempool() -> Result<(), anyhow::Error> {
     let public = private.to_public();
 
     let mut bc = new_tmp_blockchain();
-    let mut mempool = MemPool::new();
+    let mempool = MemPool::new();
 
     // Create some genesis block and add it
     let mut block = build_block(&bc, &vec![], public).await?;
