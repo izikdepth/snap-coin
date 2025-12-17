@@ -11,7 +11,7 @@ use crate::crypto::{
 /// A way of finding this transaction. Alias for Hash
 pub type TransactionId = Hash;
 
-pub const MAX_TRANSACTION_IO: usize = 100;
+pub const MAX_TRANSACTION_IO: usize = 150;
 
 /// A transaction input, that are funding a set transaction output, that must exist in the current utxo set
 #[derive(Encode, Decode, Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
