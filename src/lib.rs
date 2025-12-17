@@ -70,6 +70,8 @@ pub async fn build_transaction<B>(
     blockchain_data_provider: &B,
     sender: Private,
     mut receivers: Vec<(Public, u64)>,
+    ignore_inputs: Vec<TransactionInput>
+    
 ) -> Result<Transaction, UtilError>
 where
     B: BlockchainDataProvider,
@@ -78,9 +80,11 @@ where
         .iter()
         .fold(0u64, |acc, receiver| acc + receiver.1);
 
-    let available_inputs = blockchain_data_provider
+    let mut available_inputs = blockchain_data_provider
         .get_available_transaction_outputs(sender.to_public())
         .await?;
+
+    available_inputs.retain(|(transaction, _, index)| !ignore_inputs.iter().any(|i_input| i_input.output_index == *index && i_input.transaction_id == *transaction));
 
     let mut used_inputs = vec![];
 
