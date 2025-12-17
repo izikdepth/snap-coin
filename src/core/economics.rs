@@ -16,7 +16,7 @@ pub const TX_TARGET: usize = 100;
 pub const MAX_DIFF_CHANGE: f64 = 0.8;
 
 /// Halving of reward happens every how many blocks
-pub const HALVING_INTERVAL: usize = 210_000; // number of blocks per halving
+pub const HALVING_INTERVAL: usize = 1_000_000; // number of blocks per halving
 
 /// Minimum possible reward
 pub const MIN_REWARD: u64 = 1; // smallest possible reward
