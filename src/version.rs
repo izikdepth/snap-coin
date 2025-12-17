@@ -1,1 +1,1 @@
-pub const VERSION: u16 = 1u16;
+pub const VERSION: u16 = 2u16;

@@ -8,6 +8,8 @@ use crate::{
     crypto::Hash,
 };
 
+pub const MAX_TRANSACTIONS: usize = 500;
+
 /// Stores transaction, difficulties, its hash, and its nonce
 /// The hash can be often used for indexing, however can only be trusted if this node checked this block already
 #[derive(Encode, Decode, Serialize, Deserialize, Clone, Debug)]

@@ -7,7 +7,7 @@ use std::path::Path;
 use thiserror::Error;
 
 use crate::blockchain_data_provider::BlockchainDataProvider;
-use crate::core::block::Block;
+use crate::core::block::{Block, MAX_TRANSACTIONS};
 use crate::core::difficulty::{DifficultyManager, calculate_block_difficulty};
 use crate::core::transaction::{Transaction, TransactionId};
 use crate::core::utxo::{TransactionError, UTXODiff, UTXOs};
@@ -68,6 +68,9 @@ pub enum BlockchainError {
 
     #[error("Previous block hash is invalid")]
     InvalidPreviousBlockHash,
+
+    #[error("Block has too many transactions")]
+    TooManyTransactions,
 }
 
 impl From<TransactionError> for BlockchainError {
@@ -204,7 +207,12 @@ impl Blockchain {
 
         if self.get_height() == 0 && new_block.previous_block != GENESIS_PREVIOUS_BLOCK_HASH {
             return Err(BlockchainError::InvalidPreviousBlockHash);
-        } else if self.get_height() != 0 && *self.get_block_hash_by_height(self.get_height() - 1).unwrap() != new_block.previous_block {
+        } else if self.get_height() != 0
+            && *self
+                .get_block_hash_by_height(self.get_height() - 1)
+                .unwrap()
+                != new_block.previous_block
+        {
             return Err(BlockchainError::InvalidPreviousBlockHash);
         }
 
@@ -215,6 +223,10 @@ impl Blockchain {
             ))
         {
             return Err(BlockchainError::InvalidDifficulty);
+        }
+
+        if new_block.transactions.len() > MAX_TRANSACTIONS {
+            return Err(BlockchainError::TooManyTransactions);
         }
 
         let mut used_inputs: HashSet<(TransactionId, usize)> = HashSet::new();

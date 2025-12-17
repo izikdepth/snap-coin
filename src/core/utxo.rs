@@ -7,7 +7,10 @@ use std::{
 };
 use thiserror::Error;
 
-use crate::{core::transaction::{self, Transaction, TransactionId, TransactionOutput}, crypto::keys::Public};
+use crate::{
+    core::transaction::{self, Transaction, TransactionId, TransactionOutput},
+    crypto::keys::Public,
+};
 
 #[derive(Error, Debug)]
 pub enum TransactionError {
@@ -121,9 +124,7 @@ impl UTXOs {
             return Err(TransactionError::NoInputs);
         }
 
-        if transaction.inputs.len() > transaction::MAX_TRANSACTION_IO
-            || transaction.outputs.len() > transaction::MAX_TRANSACTION_IO
-        {
+        if transaction.inputs.len() + transaction.outputs.len() > transaction::MAX_TRANSACTION_IO {
             return Err(TransactionError::TooManyIO);
         }
 
@@ -148,7 +149,13 @@ impl UTXOs {
                 return Err(TransactionError::SpentInputIndex);
             }
 
-            if input.signature.is_none() || input.signature.unwrap().validate_with_public(&output.unwrap().receiver, &input_signing_buf).map_or(true, |valid| !valid) {
+            if input.signature.is_none()
+                || input
+                    .signature
+                    .unwrap()
+                    .validate_with_public(&output.unwrap().receiver, &input_signing_buf)
+                    .map_or(true, |valid| !valid)
+            {
                 return Err(TransactionError::InvalidSignature(tx_id.dump_base36()));
             }
 
@@ -190,11 +197,7 @@ impl UTXOs {
                 if outputs.iter().all(|o| o.is_none()) {
                     self.utxos.remove(&input.transaction_id);
                 }
-                spent_utxos.push((
-                    input.transaction_id,
-                    input.output_index,
-                    spent,
-                ));
+                spent_utxos.push((input.transaction_id, input.output_index, spent));
             }
         }
 
@@ -234,7 +237,6 @@ impl UTXOs {
                 }
             }
         }
-
     }
 
     pub fn calculate_confirmed_balance(&self, address: Public) -> u64 {
@@ -255,7 +257,10 @@ impl UTXOs {
         let mut utxos: Vec<TransactionId> = vec![];
 
         for (transaction_id, outputs) in &self.utxos {
-            if outputs.iter().any(|output| output.is_some_and(|output| output.receiver == address)) {
+            if outputs
+                .iter()
+                .any(|output| output.is_some_and(|output| output.receiver == address))
+            {
                 utxos.push(*transaction_id);
             }
         }
