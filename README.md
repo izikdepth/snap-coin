@@ -101,7 +101,7 @@ Join and grow the community: [discord.gg](https://discord.gg/ZK3gMmr3aR)
 ## Donate
 You can buy the developer a coffee and help me keep my motivation:
 
-Snap Coin: 60bamx9k23wcbv6m4xo26h4lsgxwlb83wv2nf1n0hnnatkj9vx
+Snap Coin: 5wpj4mklmxjrvus1ct3b3idvrvfymjq255ne7jm0tspavqrfyz
 
 Bitcoin: bc1qacw3l33kzdg96tu268az3chsyrg3pcup0dat9j
 
