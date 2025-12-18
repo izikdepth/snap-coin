@@ -101,12 +101,12 @@ Join and grow the community: [discord.gg](https://discord.gg/ZK3gMmr3aR)
 ## Donate
 You can buy the developer a coffee and help me keep my motivation:
 
-Snap Coin: 5wpj4mklmxjrvus1ct3b3idvrvfymjq255ne7jm0tspavqrfyz
+Snap Coin: `5wpj4mklmxjrvus1ct3b3idvrvfymjq255ne7jm0tspavqrfyz`
 
-Bitcoin: bc1qacw3l33kzdg96tu268az3chsyrg3pcup0dat9j
+Bitcoin: `bc1qacw3l33kzdg96tu268az3chsyrg3pcup0dat9j`
 
-Etherum: 0xef98b5ea67248e8a3ee4f4d3674c8ebb2be4e39a
+Etherum: `0xef98b5ea67248e8a3ee4f4d3674c8ebb2be4e39a`
 
-Solana: 8ST3miN2KLdTNXa7pkK1g2qFB3xKzpe1bvCC2QuVBDHG
+Solana: `8ST3miN2KLdTNXa7pkK1g2qFB3xKzpe1bvCC2QuVBDHG`
 
-BNB Smart Chain 0xef98b5ea67248e8a3ee4f4d3674c8ebb2be4e39a
+BNB Smart Chain `0xef98b5ea67248e8a3ee4f4d3674c8ebb2be4e39a`
