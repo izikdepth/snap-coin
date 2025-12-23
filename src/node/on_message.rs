@@ -65,15 +65,18 @@ pub async fn on_message(
             return Err(PeerError::Unknown("Got unhandled SendPeers".to_string()));
         }
         Command::NewBlock { ref block } => {
-            match accept_block(&blockchain, &node_state, block.clone()).await {
-                Ok(()) => {}
-                Err(e) => {
-                    warn!("Incoming block is invalid: {e}")
+            if !*node_state.is_syncing.read().await {
+                match accept_block(&blockchain, &node_state, block.clone()).await {
+                    Ok(()) => {}
+                    Err(e) => {
+                        warn!("Incoming block is invalid: {e}")
+                    }
                 }
             }
-            message.make_response(Command::NewBlockAccepted)
+
+            message.make_response(Command::NewBlockResolved)
         }
-        Command::NewBlockAccepted => {
+        Command::NewBlockResolved => {
             return Err(PeerError::Unknown(
                 "Got unhandled NewBlockAccepted".to_string(),
             ));
@@ -85,9 +88,9 @@ pub async fn on_message(
                     warn!("Incoming transaction is invalid: {e}")
                 }
             }
-            message.make_response(Command::NewTransactionAccepted)
+            message.make_response(Command::NewTransactionResolved)
         }
-        Command::NewTransactionAccepted => {
+        Command::NewTransactionResolved => {
             return Err(PeerError::Unknown(
                 "Got unhandled NewTransactionAccepted".to_string(),
             ));

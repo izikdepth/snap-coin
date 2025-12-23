@@ -1,6 +1,4 @@
-use std::{
-    array::TryFromSliceError,
-};
+use std::array::TryFromSliceError;
 
 use bincode::{Decode, Encode};
 use rand::random;
@@ -11,7 +9,10 @@ use tokio::{
 };
 
 use crate::{
-    core::{block::{Block, BlockMetadata}, transaction::{Transaction, TransactionId}},
+    core::{
+        block::{Block, BlockMetadata},
+        transaction::{Transaction, TransactionId},
+    },
     crypto::{Hash, merkle_tree::MerkleTreeProof},
     version::VERSION,
 };
@@ -22,28 +23,56 @@ pub enum Command {
     // Connect / keep-alive
     Connect,
     AcknowledgeConnection,
-    Ping { height: usize },
-    Pong { height: usize },
+    Ping {
+        height: usize,
+    },
+    Pong {
+        height: usize,
+    },
     GetPeers,
-    SendPeers { peers: Vec<String> },
+    SendPeers {
+        peers: Vec<String>,
+    },
 
     // Live
-    NewBlock { block: Block },
-    NewBlockAccepted,
-    NewTransaction { transaction: Transaction },
-    NewTransactionAccepted,
+    NewBlock {
+        block: Block,
+    },
+    NewBlockResolved,
+    NewTransaction {
+        transaction: Transaction,
+    },
+    NewTransactionResolved,
 
     // Historical
-    GetBlockMeta { block_hash: Hash },
-    GetBlockMetadataResponse { block_metadata: Option<BlockMetadata> },
-    GetBlock { block_hash: Hash },
-    GetBlockResponse { block: Option<Block> },
-    GetBlockHashes { start: usize, end: usize },
-    GetBlockHashesResponse { block_hashes: Vec<Hash> },
+    GetBlockMeta {
+        block_hash: Hash,
+    },
+    GetBlockMetadataResponse {
+        block_metadata: Option<BlockMetadata>,
+    },
+    GetBlock {
+        block_hash: Hash,
+    },
+    GetBlockResponse {
+        block: Option<Block>,
+    },
+    GetBlockHashes {
+        start: usize,
+        end: usize,
+    },
+    GetBlockHashesResponse {
+        block_hashes: Vec<Hash>,
+    },
 
     // Light node
-    GetTransactionMerkleProof { block: Hash, transaction_id: TransactionId },
-    GetTransactionMerkleProofResponse { proof: Option<MerkleTreeProof> },
+    GetTransactionMerkleProof {
+        block: Hash,
+        transaction_id: TransactionId,
+    },
+    GetTransactionMerkleProofResponse {
+        proof: Option<MerkleTreeProof>,
+    },
 }
 
 #[derive(Error, Debug)]
