@@ -220,7 +220,6 @@ pub async fn accept_transaction(
         .add_transaction(new_transaction.clone())
         .await;
 
-    info!("New transaction accepted: {}", transaction_id.dump_base36());
     let node_state = node_state.clone();
 
     // Forward to all peers (non blocking)

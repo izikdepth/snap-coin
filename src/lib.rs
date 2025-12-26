@@ -89,7 +89,7 @@ pub async fn build_transaction<B>(
     blockchain_data_provider: &B,
     sender: Private,
     mut receivers: Vec<(Public, u64)>,
-    ignore_inputs: Vec<TransactionInput>,
+    ignore_inputs: &Vec<TransactionInput>,
 ) -> Result<Transaction, UtilError>
 where
     B: BlockchainDataProvider,

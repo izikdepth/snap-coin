@@ -37,7 +37,7 @@ async fn test_mempool(
         &**blockchain,
         private1,
         vec![(public2, to_nano(10.0))],
-        vec![],
+        &vec![],
     )
     .await?;
 
@@ -97,7 +97,7 @@ async fn test_api(
     let client = Client::connect(format!("127.0.0.1:{}", api_port).parse().unwrap()).await?;
 
     // Create some transaction
-    let mut some_tx = build_transaction(&client, private1, vec![(public1, 100)], vec![]).await?;
+    let mut some_tx = build_transaction(&client, private1, vec![(public1, 100)], &vec![]).await?;
     some_tx.compute_pow(&client.get_live_transaction_difficulty().await?, None)?;
 
     // Submit this tx

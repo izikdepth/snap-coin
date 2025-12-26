@@ -135,7 +135,7 @@ async fn test_transaction_validation() -> Result<(), anyhow::Error> {
     block.compute_pow()?;
     bc.add_block(block)?;
 
-    let mut valid_tx = build_transaction(&bc, private, vec![(public2, 10)], vec![]).await?;
+    let mut valid_tx = build_transaction(&bc, private, vec![(public2, 10)], &vec![]).await?;
     valid_tx.compute_pow(&bc.get_transaction_difficulty(), None)?;
     bc.get_utxos().validate_transaction(&valid_tx, &BigUint::from_bytes_be(&bc.get_transaction_difficulty()))?;
 
@@ -166,12 +166,12 @@ async fn test_mempool() -> Result<(), anyhow::Error> {
     block.compute_pow()?;
     bc.add_block(block)?;
 
-    let mut new_tx = build_transaction(&bc, private, vec![(public, 100)], vec![]).await?;
+    let mut new_tx = build_transaction(&bc, private, vec![(public, 100)], &vec![]).await?;
     new_tx.compute_pow(&bc.get_transaction_difficulty(), None)?;
 
     assert!(mempool.validate_transaction(&new_tx).await, "Transaction invalidly flagged for double spending");
     mempool.add_transaction(new_tx).await;
-    let mut new_tx = build_transaction(&bc, private, vec![(public, 100)], vec![]).await?;
+    let mut new_tx = build_transaction(&bc, private, vec![(public, 100)], &vec![]).await?;
     new_tx.compute_pow(&bc.get_transaction_difficulty(), None)?;
 
     assert!(!mempool.validate_transaction(&new_tx).await, "Transaction not flagged for double spending");
