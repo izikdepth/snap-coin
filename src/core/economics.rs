@@ -36,7 +36,7 @@ pub const DEV_FEE: f64 = 0.02;
 pub const DIFFICULTY_DECAY_PER_TRANSACTION: f64 = 0.005;
 
 /// Percent by which the transaction difficulty is increased (compound) per tx already in mempool
-pub const MEMPOOL_PRESSURE_PER_TRANSACTION: f64 = (1 / MAX_TRANSACTIONS_PER_BLOCK) as f64;
+pub const MEMPOOL_PRESSURE_PER_TRANSACTION: f64 = 1f64 / (MAX_TRANSACTIONS_PER_BLOCK as f64);
 
 /// Transaction expiration time
 pub const EXPIRATION_TIME: u64 = TARGET_TIME * 10;

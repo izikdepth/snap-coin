@@ -92,12 +92,12 @@ pub fn calculate_block_difficulty(block_difficulty: &[u8; 32], tx_count: usize) 
 /// Calculate blockchain block difficulty transaction decay based on the current, base difficulty and amount of transactions in block
 pub fn calculate_live_transaction_difficulty(
     transaction_difficulty: &[u8; 32],
-    tx_count: usize,
+    mempool_size: usize,
 ) -> [u8; 32] {
     let difficulty = BigUint::from_bytes_be(transaction_difficulty);
 
     // Calculate the decay factor
-    let decay = (tx_count as f64) * MEMPOOL_PRESSURE_PER_TRANSACTION;
+    let decay = (mempool_size as f64) * MEMPOOL_PRESSURE_PER_TRANSACTION;
     let decay = decay.clamp(0.0, 1.0); // Ensure it stays between 0 and 1
 
     // Apply linear decay: new_difficulty = original * (1 - decay)

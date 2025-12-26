@@ -31,7 +31,7 @@ use crate::{
     core::{
         block::Block,
         blockchain::{self, Blockchain, BlockchainError},
-        transaction::Transaction,
+        transaction::{Transaction, TransactionError},
     },
     full_node::{
         behavior::FullNodePeerBehavior,
@@ -207,6 +207,13 @@ pub async fn accept_transaction(
         &new_transaction,
         &BigUint::from_bytes_be(&blockchain.get_transaction_difficulty()),
     )?;
+    if !node_state
+        .mempool
+        .validate_transaction(&new_transaction)
+        .await
+    {
+        return Err(TransactionError::DoubleSpend(transaction_id.dump_base36()).into());
+    }
 
     node_state
         .mempool
