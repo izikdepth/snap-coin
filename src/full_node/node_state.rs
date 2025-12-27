@@ -35,7 +35,7 @@ impl NodeState {
             connected_peers: RwLock::new(HashMap::new()),
             mempool: MemPool::new(),
             is_syncing: RwLock::new(false),
-            chain_events: broadcast::channel(1).0,
+            chain_events: broadcast::channel(64).0,
             last_seen_block_reader,
             last_seen_block_writer,
             last_seen_transaction_reader,
