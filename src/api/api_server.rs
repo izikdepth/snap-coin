@@ -9,7 +9,10 @@ use tokio::{
 use crate::{
     api::requests::{Request, Response},
     blockchain_data_provider::BlockchainDataProvider,
-    core::{difficulty::calculate_live_transaction_difficulty, transaction::TransactionError, utils::slice_vec},
+    core::{
+        difficulty::calculate_live_transaction_difficulty, transaction::TransactionError,
+        utils::slice_vec,
+    },
     economics::get_block_reward,
     full_node::{SharedBlockchain, accept_block, accept_transaction, node_state::SharedNodeState},
 };
@@ -167,7 +170,28 @@ impl Server {
                     Request::BlockHeight { hash } => Response::BlockHeight {
                         height: blockchain.block_store().get_block_height_by_hash(hash),
                     },
-                    Request::LiveTransactionDifficulty => Response::LiveTransactionDifficulty { live_difficulty: calculate_live_transaction_difficulty(&blockchain.get_transaction_difficulty(), node_state.mempool.mempool_size().await) },
+                    Request::LiveTransactionDifficulty => Response::LiveTransactionDifficulty {
+                        live_difficulty: calculate_live_transaction_difficulty(
+                            &blockchain.get_transaction_difficulty(),
+                            node_state.mempool.mempool_size().await,
+                        ),
+                    },
+                    Request::SubscribeToChainEvents => {
+                        let mut rx = node_state.chain_events.subscribe();
+                        // Start event stream task
+                        loop {
+                            match rx.recv().await {
+                                Ok(event) => {
+                                    let response = Response::ChainEvent { event };
+                                    stream.write_all(&response.encode()?).await?;
+                                }
+                                Err(_) => break,
+                            }
+                        }
+
+                        // Stop request response task
+                        return Ok(());
+                    }
                 };
                 let response_buf = response.encode()?;
 

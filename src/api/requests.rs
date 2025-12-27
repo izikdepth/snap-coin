@@ -11,6 +11,7 @@ use crate::{
         transaction::{Transaction, TransactionId, TransactionOutput},
     },
     crypto::{Hash, keys::Public},
+    full_node::node_state::ChainEvent,
 };
 
 #[derive(Error, Debug, Serialize, Deserialize)]
@@ -48,6 +49,7 @@ pub enum Request {
     NewBlock { new_block: Block },
     NewTransaction { new_transaction: Transaction },
     LiveTransactionDifficulty,
+    SubscribeToChainEvents,
 }
 
 impl Request {
@@ -142,6 +144,9 @@ pub enum Response {
     },
     LiveTransactionDifficulty {
         live_difficulty: [u8; 32],
+    },
+    ChainEvent {
+        event: ChainEvent,
     },
 }
 

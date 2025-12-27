@@ -1,7 +1,17 @@
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
-use tokio::sync::{RwLock, watch};
+use tokio::sync::{RwLock, broadcast, watch};
 
-use crate::{core::{difficulty::calculate_live_transaction_difficulty, transaction::TransactionId}, crypto::Hash, full_node::mempool::MemPool, node::peer::PeerHandle};
+use crate::{
+    core::{
+        block::Block,
+        difficulty::calculate_live_transaction_difficulty,
+        transaction::{Transaction, TransactionId},
+    },
+    crypto::Hash,
+    full_node::mempool::MemPool,
+    node::peer::PeerHandle,
+};
 
 pub type SharedNodeState = Arc<NodeState>;
 
@@ -9,6 +19,7 @@ pub struct NodeState {
     pub connected_peers: RwLock<HashMap<SocketAddr, PeerHandle>>,
     pub mempool: MemPool,
     pub is_syncing: RwLock<bool>,
+    pub chain_events: broadcast::Sender<ChainEvent>,
     last_seen_block_reader: watch::Receiver<Hash>,
     last_seen_block_writer: watch::Sender<Hash>,
     last_seen_transaction_reader: watch::Receiver<TransactionId>,
@@ -18,11 +29,13 @@ pub struct NodeState {
 impl NodeState {
     pub fn new_empty() -> SharedNodeState {
         let (last_seen_block_writer, last_seen_block_reader) = watch::channel(Hash::new(b""));
-        let (last_seen_transaction_writer, last_seen_transaction_reader) = watch::channel(TransactionId::new(b""));
+        let (last_seen_transaction_writer, last_seen_transaction_reader) =
+            watch::channel(TransactionId::new(b""));
         Arc::new(NodeState {
             connected_peers: RwLock::new(HashMap::new()),
             mempool: MemPool::new(),
             is_syncing: RwLock::new(false),
+            chain_events: broadcast::channel(1).0,
             last_seen_block_reader,
             last_seen_block_writer,
             last_seen_transaction_reader,
@@ -50,7 +63,19 @@ impl NodeState {
         let _ = self.last_seen_transaction_writer.send(tx_id);
     }
 
-    pub async fn get_live_transaction_difficulty(&self, transaction_difficulty: [u8; 32]) -> [u8; 32] {
-        calculate_live_transaction_difficulty(&transaction_difficulty, self.mempool.mempool_size().await)
+    pub async fn get_live_transaction_difficulty(
+        &self,
+        transaction_difficulty: [u8; 32],
+    ) -> [u8; 32] {
+        calculate_live_transaction_difficulty(
+            &transaction_difficulty,
+            self.mempool.mempool_size().await,
+        )
     }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub enum ChainEvent {
+    Block { block: Block },
+    Transaction { transaction: Transaction },
 }

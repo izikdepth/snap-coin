@@ -11,6 +11,7 @@ use crate::{
         transaction::{Transaction, TransactionId, TransactionOutput},
     },
     crypto::{Hash, keys::Public},
+    full_node::node_state::ChainEvent,
 };
 
 pub struct Client {
@@ -150,12 +151,35 @@ impl Client {
         }
     }
 
-    pub async fn get_live_transaction_difficulty(&self) -> Result<[u8; 32], BlockchainDataProviderError> {
+    pub async fn get_live_transaction_difficulty(
+        &self,
+    ) -> Result<[u8; 32], BlockchainDataProviderError> {
         match self.fetch(Request::LiveTransactionDifficulty).await? {
-            Response::LiveTransactionDifficulty { live_difficulty } => {
-                return Ok(live_difficulty)
+            Response::LiveTransactionDifficulty { live_difficulty } => return Ok(live_difficulty),
+            _ => return Err(RequestResponseError::IncorrectResponse.into()),
+        }
+    }
+
+    /// Blocking
+    /// Convert this client into a event listener and supply a callback on `ChainEvent`
+    pub async fn convert_to_event_listener(
+        self,
+        mut on_event: impl FnMut(ChainEvent),
+    ) -> Result<(), BlockchainDataProviderError> {
+        let mut stream = self.stream.lock().await;
+        loop {
+            let message = Response::decode_from_stream(&mut stream).await?;
+
+            match message {
+                Response::ChainEvent { event } => {
+                    on_event(event);
+                }
+                _ => {
+                    return Err(BlockchainDataProviderError::RequestResponseError(
+                        RequestResponseError::IncorrectResponse,
+                    ));
+                }
             }
-            _ => return Err(RequestResponseError::IncorrectResponse.into())
         }
     }
 }

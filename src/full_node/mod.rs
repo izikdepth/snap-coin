@@ -165,6 +165,12 @@ pub async fn accept_block(
         .await;
 
     info!("New block accepted: {}", block_hash.dump_base36());
+
+    // Broadcast new block
+    node_state.chain_events.send(node_state::ChainEvent::Block {
+        block: new_block.clone(),
+    });
+
     let node_state = node_state.clone();
 
     // Forward to all peers (non blocking)
@@ -219,6 +225,13 @@ pub async fn accept_transaction(
         .mempool
         .add_transaction(new_transaction.clone())
         .await;
+
+    // Broadcast new transaction
+    node_state
+        .chain_events
+        .send(node_state::ChainEvent::Transaction {
+            transaction: new_transaction.clone(),
+        });
 
     let node_state = node_state.clone();
 
