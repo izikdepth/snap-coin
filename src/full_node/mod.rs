@@ -167,7 +167,7 @@ pub async fn accept_block(
     info!("New block accepted: {}", block_hash.dump_base36());
 
     // Broadcast new block
-    node_state.chain_events.send(node_state::ChainEvent::Block {
+    let _ = node_state.chain_events.send(node_state::ChainEvent::Block {
         block: new_block.clone(),
     });
 
@@ -227,7 +227,7 @@ pub async fn accept_transaction(
         .await;
 
     // Broadcast new transaction
-    node_state
+    let _ = node_state
         .chain_events
         .send(node_state::ChainEvent::Transaction {
             transaction: new_transaction.clone(),
