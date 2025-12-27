@@ -167,6 +167,12 @@ impl Client {
         mut on_event: impl FnMut(ChainEvent),
     ) -> Result<(), BlockchainDataProviderError> {
         let mut stream = self.stream.lock().await;
+        self.stream
+            .lock()
+            .await
+            .write_all(&Request::SubscribeToChainEvents.encode()?)
+            .await.map_err(|_| RequestResponseError::Stream)?;
+
         loop {
             let message = Response::decode_from_stream(&mut stream).await?;
 
