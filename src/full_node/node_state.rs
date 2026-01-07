@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
-use tokio::sync::{RwLock, broadcast, watch};
+use tokio::sync::{Mutex, RwLock, broadcast, watch};
 
 use crate::{
     core::{
@@ -20,6 +20,7 @@ pub struct NodeState {
     pub mempool: MemPool,
     pub is_syncing: RwLock<bool>,
     pub chain_events: broadcast::Sender<ChainEvent>,
+    pub adding_block: Mutex<()>,
     last_seen_block_reader: watch::Receiver<Hash>,
     last_seen_block_writer: watch::Sender<Hash>,
     last_seen_transaction_reader: watch::Receiver<TransactionId>,
@@ -28,14 +29,15 @@ pub struct NodeState {
 
 impl NodeState {
     pub fn new_empty() -> SharedNodeState {
-        let (last_seen_block_writer, last_seen_block_reader) = watch::channel(Hash::new(b""));
+        let (last_seen_block_writer, last_seen_block_reader) = watch::channel(Hash::new_from_buf([0u8; 32]));
         let (last_seen_transaction_writer, last_seen_transaction_reader) =
-            watch::channel(TransactionId::new(b""));
+            watch::channel(TransactionId::new_from_buf([0u8; 32]));
         Arc::new(NodeState {
             connected_peers: RwLock::new(HashMap::new()),
             mempool: MemPool::new(),
             is_syncing: RwLock::new(false),
             chain_events: broadcast::channel(64).0,
+            adding_block: Mutex::new(()),
             last_seen_block_reader,
             last_seen_block_writer,
             last_seen_transaction_reader,

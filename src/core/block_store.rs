@@ -82,7 +82,7 @@ impl BlockStore {
         // Serialize
         let block_buffer = bincode::encode_to_vec(block.clone(), bincode::config::standard())
             .map_err(|_| BlockStoreError::Encode)?;
-        let diffs_buffer = bincode::encode_to_vec(diffs, bincode::config::standard())
+        let diffs_buffer: Vec<u8> = bincode::encode_to_vec(diffs, bincode::config::standard())
             .map_err(|_| BlockStoreError::Encode)?;
 
         // Write temp block

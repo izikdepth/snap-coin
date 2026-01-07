@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use crate::{
     core::{difficulty::calculate_block_difficulty, transaction::Transaction},
-    crypto::{Hash, address_inclusion_filter::AddressInclusionFilter, merkle_tree::MerkleTree},
+    crypto::{Hash, address_inclusion_filter::{AddressInclusionFilter, AddressInclusionFilterError}, merkle_tree::MerkleTree},
 };
 
 pub const MAX_TRANSACTIONS_PER_BLOCK: usize = 500;
@@ -33,6 +33,12 @@ pub enum BlockError {
 
     #[error("Merkle root tree is invalid")]
     InvalidMerkleTreeRoot,
+
+    #[error("Address inclusion filter error: {0}")]
+    AddressInclusionFilter(#[from] AddressInclusionFilterError),
+
+    #[error("Address inclusion filter is incorrect")]
+    IncorrectAddressInclusionFilter,
 }
 
 /// Stores transaction, difficulties, its hash, and its nonce
@@ -107,7 +113,7 @@ impl Block {
     pub fn check_meta(&self) -> Result<(), BlockError> {
         self.check_completeness()?;
         self.validate_block_hash()?;
-        self.validate_block_hash()?;
+        self.validate_address_inclusion_filter()?;
         self.validate_merkle_tree()?;
         Ok(())
     }
@@ -172,6 +178,16 @@ impl Block {
         let tree = MerkleTree::build(&ids);
         if tree.root_hash() != self.meta.merkle_tree_root {
             return Err(BlockError::InvalidMerkleTreeRoot);
+        }
+        Ok(())
+    }
+
+    /// Check if inclusion filter is correctly calculated
+    pub fn validate_address_inclusion_filter(&self) -> Result<(), BlockError> {
+        if AddressInclusionFilter::create_filter(&self.transactions)?
+            != self.meta.address_inclusion_filter
+        {
+            return Err(BlockError::IncorrectAddressInclusionFilter);
         }
         Ok(())
     }

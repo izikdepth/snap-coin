@@ -23,12 +23,12 @@ pub struct DifficultyState {
 
 /// Manages network difficulty and TX POW difficulty
 impl DifficultyState {
-    /// Create a new empty Difficulty Manager timestamped now
-    pub fn new_default(last_timestamp: u64) -> Self {
+    /// Create a new empty Difficulty State
+    pub fn new_default() -> Self {
         DifficultyState {
             block_difficulty: RwLock::new(STARTING_BLOCK_DIFFICULTY),
             transaction_difficulty: RwLock::new(STARTING_TX_DIFFICULTY),
-            last_timestamp: RwLock::new(last_timestamp),
+            last_timestamp: RwLock::new(0),
         }
     }
 
@@ -63,6 +63,14 @@ impl DifficultyState {
 
         // Update last timestamp
         *self.last_timestamp.write().unwrap() = new_block.timestamp;
+    }
+
+    pub fn get_block_difficulty(&self) -> [u8; 32] {
+        *self.block_difficulty.read().unwrap()
+    }
+
+    pub fn get_transaction_difficulty(&self) -> [u8; 32] {
+        *self.transaction_difficulty.read().unwrap()
     }
 }
 

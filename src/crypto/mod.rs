@@ -1,13 +1,16 @@
-use argon2::{Argon2, Params};
 use bincode::{Decode, Encode};
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::ed25519::Error;
 use ed25519_dalek::ed25519::signature::SignerMut;
 use ed25519_dalek::{Signature as DalekSignature, VerifyingKey};
 use num_bigint::BigUint;
+use randomx_rs::{RandomXCache, RandomXDataset, RandomXFlag, RandomXVM};
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::fmt;
 use std::ops::Deref;
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use keys::{Private, Public};
 
@@ -20,37 +23,67 @@ pub mod merkle_tree;
 /// Address inclusion filter
 pub mod address_inclusion_filter;
 
-/// Argon2 configuration, includes magic bytes (the salt for hashing)
-pub struct Argon2Config {
-    pub memory_cost: u32,
-    pub time_cost: u32,
-    pub parallelism: u32,
-    pub output_length: Option<usize>,
-    pub algorithm: argon2::Algorithm,
-    pub version: argon2::Version,
-    pub magic_bytes: [u8; 10]
+pub const RANDOMX_SEED: &[u8] = b"snap-coin-testnet";
+
+/// Wrapper for the dataset to assert Sync manually
+#[derive(Clone)]
+struct SharedDataset(RandomXDataset);
+
+// SAFETY: RandomXDataset is immutable after creation, safe for concurrent reads
+unsafe impl Sync for SharedDataset {}
+unsafe impl Send for SharedDataset {}
+
+static DATASET: OnceLock<SharedDataset> = OnceLock::new();
+static IS_LIGHT_MODE: AtomicBool = AtomicBool::new(true);
+
+/// This can only be called at the beginning of a program to be effective (before all Hash::new() or Hash::compare_with_data() calls to work)
+/// Enables full memory mode, substantially increasing hash rate, by allocating a 2GB scratch pad for hashing
+pub fn randomx_use_full_mode() {
+    IS_LIGHT_MODE.store(false, Ordering::SeqCst);
 }
 
-/// The currently used, blockchain argon2 config
-pub const ARGON2_CONFIG: Argon2Config = Argon2Config {
-    memory_cost: 8 * 1024,
-    time_cost: 1,
-    parallelism: 2,
-    output_length: Some(32),
-    algorithm: argon2::Algorithm::Argon2id,
-    version: argon2::Version::V0x13,
-    magic_bytes: [0xCD, 0xC6, 0x3B, 0xAF, 0x5E, 0x52, 0xE0, 0x9, 0x72, 0xAD]
-};
+/// Returns a reference to the shared dataset
+fn get_dataset() -> RandomXDataset {
+    let dataset = DATASET.get_or_init(|| {
+        println!("Creating RandomX dataset...");
+        let flags = RandomXFlag::FLAG_FULL_MEM | RandomXFlag::FLAG_JIT;
 
-// WARNING: SLOW
-pub fn argon2_hash(input: &[u8]) -> [u8; 32] {
-    let params = Params::new(ARGON2_CONFIG.memory_cost, ARGON2_CONFIG.time_cost, ARGON2_CONFIG.parallelism, ARGON2_CONFIG.output_length).unwrap();
-    let argon2 = Argon2::new(ARGON2_CONFIG.algorithm, ARGON2_CONFIG.version, params);
-    let mut hash = [0u8; 32];
-    argon2
-        .hash_password_into(input, &ARGON2_CONFIG.magic_bytes, &mut hash)
-        .unwrap();
-    hash
+        let cache =
+            RandomXCache::new(flags, RANDOMX_SEED).expect("Failed to create RandomX cache");
+
+        let dataset =
+            RandomXDataset::new(flags, cache, 0).expect("Failed to create RandomX dataset");
+
+        let shared_dataset = SharedDataset(dataset);
+        println!("RandomX dataset created!");
+        shared_dataset
+    });
+    dataset.clone().0
+}
+
+// Thread-local VM
+thread_local! {
+    static THREAD_VM: RefCell<RandomXVM> = RefCell::new({
+        if IS_LIGHT_MODE.load(Ordering::SeqCst) {
+            let flags = RandomXFlag::FLAG_JIT;
+            let cache = RandomXCache::new(flags, RANDOMX_SEED).expect("Failed to create RandomX cache (light mode)");
+            RandomXVM::new(flags, Some(cache), None)
+                .expect("Failed to create RandomX VM (light mode)")
+        } else {
+            let flags = RandomXFlag::FLAG_FULL_MEM | RandomXFlag::FLAG_JIT;
+            let dataset = get_dataset();
+            RandomXVM::new(flags, None, Some(dataset.clone()))
+                .expect("Failed to create RandomX VM (full mode)")
+        }
+    });
+}
+
+pub fn randomx_hash(input: &[u8]) -> [u8; 32] {
+    THREAD_VM.with(|vm_cell| {
+        let vm = vm_cell.borrow_mut();
+        let hash_vec = vm.calculate_hash(input).expect("RandomX hashing failed");
+        hash_vec.try_into().expect("Hash must be 32 bytes")
+    })
 }
 
 /// Store and hash Argon2 hashes (compare too)
@@ -62,7 +95,7 @@ impl Hash {
     /// Create a new hash by hashing some data
     /// WARNING: SLOW
     pub fn new(data: &[u8]) -> Self {
-        Hash(argon2_hash(data))
+        Hash(randomx_hash(data))
     }
 
     /// Create a new hash with a buffer of an already existing hash
@@ -72,7 +105,7 @@ impl Hash {
 
     /// Compare this hash with some data (check if the data hash is the same)
     pub fn compare_with_data(&self, other_data: &[u8]) -> bool {
-        let computed = argon2_hash(other_data);
+        let computed = randomx_hash(other_data);
         computed == self.0
     }
 
@@ -220,7 +253,8 @@ impl<'de> Deserialize<'de> for Signature {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Self::new_from_base36(&s).ok_or_else(|| serde::de::Error::custom("Invalid base36 signature"))
+        Self::new_from_base36(&s)
+            .ok_or_else(|| serde::de::Error::custom("Invalid base36 signature"))
     }
 }
 

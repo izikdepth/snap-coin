@@ -17,7 +17,6 @@ use crate::{
         transaction::{Transaction, TransactionError, TransactionId},
         utxo::{UTXODiff, UTXOs},
     },
-    crypto::address_inclusion_filter::{AddressInclusionFilter, AddressInclusionFilterError},
     economics::{DEV_WALLET, EXPIRATION_TIME, calculate_dev_fee, get_block_reward},
 };
 
@@ -80,12 +79,6 @@ pub enum BlockchainError {
     #[error("UTXOs error: {0}")]
     UTXOs(String),
 
-    #[error("Address inclusion filter error: {0}")]
-    AddressInclusionFilter(#[from] AddressInclusionFilterError),
-
-    #[error("Address inclusion filter is incorrect")]
-    IncorrectAddressInclusionFilter,
-
     #[error("Live transaction difficulty not beat")]
     LiveTransactionDifficulty,
 }
@@ -109,7 +102,7 @@ pub struct Blockchain {
     blockchain_path: String,
     block_store: BlockStore,
     utxos: UTXOs,
-    difficulty_manager: DifficultyState,
+    difficulty_state: DifficultyState,
 }
 
 impl Blockchain {
@@ -130,16 +123,14 @@ impl Blockchain {
                 return Blockchain {
                     block_store: blockchain_data.block_store,
                     utxos: UTXOs::new(blockchain_path.clone()),
-                    difficulty_manager: blockchain_data.difficulty_state,
+                    difficulty_state: blockchain_data.difficulty_state,
                     blockchain_path,
                 };
             }
             Err(_) => {
                 return Blockchain {
                     utxos: UTXOs::new(blockchain_path.clone()),
-                    difficulty_manager: DifficultyState::new_default(
-                        chrono::Utc::now().timestamp() as u64,
-                    ),
+                    difficulty_state: DifficultyState::new_default(),
                     block_store: BlockStore::new_empty(&format!("{}blocks/", blockchain_path)),
                     blockchain_path,
                 };
@@ -162,7 +153,7 @@ impl Blockchain {
         let mut file = File::create(format!("{}blockchain.dat", self.blockchain_path))
             .map_err(|e| BlockchainError::Io(e.to_string()))?;
         let blockchain_data = BlockchainData {
-            difficulty_state: self.difficulty_manager.clone(),
+            difficulty_state: self.difficulty_state.clone(),
             block_store: self.block_store().clone(),
         };
         file.sync_all()
@@ -182,12 +173,6 @@ impl Blockchain {
             &self.get_block_difficulty(),
             &self.get_transaction_difficulty(),
         )?;
-
-        if AddressInclusionFilter::create_filter(&new_block.transactions)?
-            != new_block.meta.address_inclusion_filter
-        {
-            return Err(BlockchainError::IncorrectAddressInclusionFilter);
-        }
 
         // Validate previous hash
         if self.block_store.get_last_block_hash() != new_block.meta.previous_block {
@@ -268,7 +253,7 @@ impl Blockchain {
             utxo_diffs.extend(&mut self.utxos.execute_transaction(transaction)?);
         }
 
-        self.difficulty_manager.update_difficulty(&new_block);
+        self.difficulty_state.update_difficulty(&new_block);
 
         self.block_store().add_block(new_block, utxo_diffs)?;
         self.save_blockchain_data()?;
@@ -297,19 +282,19 @@ impl Blockchain {
         self.block_store().pop_block()?;
 
         // Update difficulty manager
-        *self.difficulty_manager.block_difficulty.write().unwrap() =
+        *self.difficulty_state.block_difficulty.write().unwrap() =
             recalled_block.meta.block_pow_difficulty;
         *self
-            .difficulty_manager
+            .difficulty_state
             .transaction_difficulty
             .write()
             .unwrap() = recalled_block.meta.tx_pow_difficulty;
         if self.block_store().get_height() > 0
             && let Some(last_block) = self.block_store().get_last_block()
         {
-            *self.difficulty_manager.last_timestamp.write().unwrap() = last_block.timestamp;
+            *self.difficulty_state.last_timestamp.write().unwrap() = last_block.timestamp;
         } else {
-            *self.difficulty_manager.last_timestamp.write().unwrap() = recalled_block.timestamp;
+            *self.difficulty_state.last_timestamp.write().unwrap() = recalled_block.timestamp;
         }
 
         // Save blockchain data
@@ -323,19 +308,15 @@ impl Blockchain {
     }
 
     pub fn get_difficulty_manager(&self) -> &DifficultyState {
-        &self.difficulty_manager
+        &self.difficulty_state
     }
 
     pub fn get_transaction_difficulty(&self) -> [u8; 32] {
-        *self
-            .difficulty_manager
-            .transaction_difficulty
-            .read()
-            .unwrap()
+        *self.difficulty_state.transaction_difficulty.read().unwrap()
     }
 
     pub fn get_block_difficulty(&self) -> [u8; 32] {
-        *self.difficulty_manager.block_difficulty.read().unwrap()
+        *self.difficulty_state.block_difficulty.read().unwrap()
     }
 
     pub fn block_store(&self) -> &BlockStore {
