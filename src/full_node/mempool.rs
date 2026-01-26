@@ -20,7 +20,10 @@ impl MemPool {
     }
 
     /// Starts a background task that removes expired transactions
-    pub fn start_expiry_watchdog(&self, mut on_expiry: impl FnMut(TransactionId) + Send + Sync + 'static) {
+    pub fn start_expiry_watchdog(
+        &self,
+        mut on_expiry: impl FnMut(TransactionId) + Send + Sync + 'static,
+    ) {
         let pending = self.pending.clone();
         tokio::spawn(async move {
             loop {
@@ -103,5 +106,9 @@ impl MemPool {
             .await
             .values()
             .fold(0, |acc, txs| acc + txs.len())
+    }
+
+    pub async fn clear(&self) {
+        self.pending.write().await.clear();
     }
 }

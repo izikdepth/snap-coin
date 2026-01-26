@@ -156,7 +156,7 @@ pub async fn accept_block(
     node_state.set_last_seen_block(block_hash);
 
     // Wait for any running add block tasks to finish, hold a lock to prevent stacking
-    let _lock = node_state.adding_block.lock().await;
+    let _lock = node_state.processing.lock().await;
 
     // Validation
     blockchain::validate_block_timestamp(&new_block)?;

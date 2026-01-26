@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use log::{error, warn};
+use log::{error, info, warn};
 
 use crate::{
     crypto::merkle_tree::MerkleTreeProof,
@@ -52,7 +52,11 @@ impl PeerBehavior for FullNodePeerBehavior {
                     // We need to sync to longer chain
                     let node_state = node_state.clone();
                     tokio::spawn(async move {
-                        let res = sync_to_peer(&peer, &blockchain, height).await;
+                        node_state.mempool.clear().await; // We completely clear the mempool since syncing may invalidate, or double spend transactions
+                        let res = {
+                            let _lock = node_state.processing.lock().await; // Get a lock to make sure that we are not overwriting any blocks by accident
+                            sync_to_peer(&peer, &blockchain, height).await
+                        };
                         *node_state.is_syncing.write().await = false;
                         match res {
                             Ok(()) => {}
