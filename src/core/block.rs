@@ -6,7 +6,12 @@ use thiserror::Error;
 
 use crate::{
     core::{difficulty::calculate_block_difficulty, transaction::Transaction},
-    crypto::{Hash, address_inclusion_filter::{AddressInclusionFilter, AddressInclusionFilterError}, merkle_tree::MerkleTree},
+    crypto::{
+        Hash,
+        address_inclusion_filter::{AddressInclusionFilter, AddressInclusionFilterError},
+        merkle_tree::MerkleTree,
+    },
+    economics::SCIP_1_MIGRATION,
 };
 
 pub const MAX_TRANSACTIONS_PER_BLOCK: usize = 500;
@@ -79,15 +84,39 @@ impl Block {
     /// Get this blocks hashing buffer required to mine this transaction. Essentially makes sure that any hash attached to this block is not included in the block hashing buffer
     /// WARNING: Slow
     pub fn get_hashing_buf(&self) -> Result<Vec<u8>, EncodeError> {
-        let mut hash_less_block = self.clone();
-        hash_less_block.meta.hash = None; // Remove hash
+        use sha2::{Digest, Sha256};
 
-        // Remove all transaction inputs because, we can just hash the transaction hash and keep the integrity
-        for transaction in &mut hash_less_block.transactions {
-            transaction.inputs = vec![];
-            transaction.outputs = vec![];
+        // Clone once and normalize
+        let mut hash_less_block = self.clone();
+        hash_less_block.meta.hash = None;
+
+        // SCIP-1: We hash the transaction inputs with sha256 to avoid hashing them with random x during validation
+        let mut transactions_digest = Vec::with_capacity(hash_less_block.transactions.len() * 32);
+
+        for tx in &mut hash_less_block.transactions {
+            // Hash the transaction itself (before stripping)
+            let mut encoded_tx_io =
+                bincode::encode_to_vec(tx.inputs.clone(), bincode::config::standard())?;
+            encoded_tx_io.extend(bincode::encode_to_vec(
+                tx.inputs.clone(),
+                bincode::config::standard(),
+            )?);
+            let digest = Sha256::digest(&encoded_tx_io);
+
+            transactions_digest.extend_from_slice(&digest);
+
+            // Strip variable parts
+            tx.inputs.clear();
+            tx.outputs.clear();
         }
-        bincode::encode_to_vec(hash_less_block, bincode::config::standard())
+
+        // Encode normalized block
+        let mut buf = bincode::encode_to_vec(hash_less_block, bincode::config::standard())?;
+        if chrono::Utc::now().timestamp() as u64 > SCIP_1_MIGRATION {
+            buf.extend_from_slice(&transactions_digest);
+        }
+
+        Ok(buf)
     }
 
     /// Mine this block and attach its hash.

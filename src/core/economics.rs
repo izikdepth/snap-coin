@@ -75,3 +75,6 @@ pub fn total_reward(up_to_height: usize) -> u64 {
 pub const fn calculate_dev_fee(block_reward: u64) -> u64 {
     (block_reward as f64 * DEV_FEE) as u64
 }
+
+// Snap Coin Improvement Protocol migration dates
+pub const SCIP_1_MIGRATION: u64 = 1770375600; // February 6, 2026 12:00:00 AM CET

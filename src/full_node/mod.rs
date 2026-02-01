@@ -10,6 +10,9 @@ pub mod mempool;
 /// Stores current node state, shared between threads
 pub mod node_state;
 
+/// IBD Logic
+pub mod ibd;
+
 /// Handles full node on message logic
 mod behavior;
 
@@ -225,7 +228,7 @@ pub async fn accept_transaction(
     blockchain.get_utxos().validate_transaction(
         &new_transaction,
         &BigUint::from_bytes_be(&blockchain.get_transaction_difficulty()),
-        false
+        false,
     )?;
     if !node_state
         .mempool
