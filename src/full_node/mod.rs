@@ -61,12 +61,12 @@ pub fn create_full_node(
         let log_path = node_path.join("logs");
         std::fs::create_dir_all(&log_path).expect("Failed to create log directory");
 
-        let mut logger = Logger::try_with_str("info")
+        let mut logger = Logger::try_with_str("debug") // TODO: configure to info when in prod.
             .unwrap()
             .log_to_file(FileSpec::default().directory(&log_path));
 
         if !disable_stdout {
-            logger = logger.duplicate_to_stderr(Duplicate::Info);
+            logger = logger.duplicate_to_stderr(Duplicate::Debug); // TODO: configure to info when in prod.
         }
 
         logger.start().ok(); // Ignore errors if logger is already set
