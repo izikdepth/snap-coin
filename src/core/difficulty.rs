@@ -10,6 +10,9 @@ use crate::{
 };
 use bincode::{Decode, Encode};
 use num_bigint::BigUint;
+use rand::Rng;
+use log::debug;
+use tokio::time;
 
 pub const STARTING_BLOCK_DIFFICULTY: [u8; 32] = [u8::MAX; 32];
 pub const STARTING_TX_DIFFICULTY: [u8; 32] = [u8::MAX; 32];
@@ -34,15 +37,29 @@ impl DifficultyState {
 
     /// Update the network difficulties after adding a new block to the blockchain
     pub fn update_difficulty(&self, new_block: &Block) {
-        // Block difficulty
-        let time_ratio = (clamp_f(
-            (new_block
-                .timestamp
-                .saturating_sub(*self.last_timestamp.read().unwrap())) as f64
-                / TARGET_TIME as f64,
+        let last_timestamp = *self.last_timestamp.read().unwrap();
+        // delta is the difference between the timestamp of the new block and the last block.
+        let delta = new_block.timestamp.saturating_sub(last_timestamp);
+
+        // raw_ratio is the ratio of the actual time taken to mine the block to the target time. If it's above 1, blocks are being mined too slowly, if it's below 1, blocks are being mined too quickly.
+        let raw_ratio = delta as f64 / TARGET_TIME as f64;
+
+        // if blocks are too slow ( raw_ratio > 1), we want to decrease the difficulty to make mining easier
+        // if blocks are too fast ( raw_ratio < 1), we want to increase the difficulty to make mining harder
+        // clamp changes to + or - %50 max (with MAX_DIFF_CHANGE = 0.5)
+        let clamped_ratio = clamp_f(
+            raw_ratio,
             MAX_DIFF_CHANGE,
             2.0 - MAX_DIFF_CHANGE,
-        ) * 1000.0) as u64;
+            );
+
+        let time_ratio = ( clamped_ratio * 1000.0) as u64;
+        
+        debug!(
+            "time_ratio = {} (delta = {} ms, target = {} ms, raw_ratio = {:.3}, clamped_ratio = {:.3})", 
+            time_ratio, delta, TARGET_TIME, raw_ratio, clamped_ratio
+        );
+
 
         let mut block_big = BigUint::from_bytes_be(&*self.block_difficulty.read().unwrap());
         block_big = block_big * BigUint::from(time_ratio) / BigUint::from(1000u64);

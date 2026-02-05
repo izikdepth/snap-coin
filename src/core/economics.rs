@@ -16,7 +16,7 @@ pub const TARGET_TIME: u64 = 20;
 pub const TX_TARGET: usize = 100;
 
 /// Max amount the difficulty can change per block (TX and block diff)
-pub const MAX_DIFF_CHANGE: f64 = 0.8;
+pub const MAX_DIFF_CHANGE: f64 = 0.5;
 
 /// Halving of reward happens every how many blocks
 pub const HALVING_INTERVAL: usize = 1_000_000; // number of blocks per halving
